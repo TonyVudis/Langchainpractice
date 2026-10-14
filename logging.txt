@@ -1,0 +1,8 @@
+Your convo log: 
+you: hello my name is tony
+AI: [{'type': 'text', 'text': 'Hello Tony! Nice to meet you. How can I help you today?', 'extras': {'signature': 'ErAECq0EAWkUfRM2rKiQc7wNzjyhMsuBpY0JWXshAtKspoUjQYGXuWf7hzZnaZZyzSDRIidL62sGPC0dU5MA3BmdnzBhGQtnJsmyhPmwXp4ypYElp/ahfewLyP2YCPloSzCniWVkvMeE3lM41XR5BH3/UjRteL/ndF4KMufuDU/mM203JvE7DzP3Y5zuCqk4hia0WOo4wyOtFDirmVcoGRns5EtvvvxO3OGSk6ddkR6d7Ex8N+w6XQ+YwhaHrb5SiARqMMaUAKplPKu/E/AxDqwEChbK7/Q/Io7eb06X3p78YQKEaR5vu2dAC9wVfy9CxZ5wclPRMeJTogS5sB/LRt4kUVdenuEJ0KlMZDXLgjhkDZ/f/BaHVo0uU6ZqDND/9H7IOeBXuo7Djz/9h9tdszj8kZmDZ4qXfLvUrbmxqHaG5gbEmUt/xusoI+oNR9jMnCwiIVO3j8HjOeNYcBN5ZHzTKEvGsDPD8ZfeekNe9nC6bqnPR+FVGDcIX95hbfKwUo3E+PR/C8AhmeNEcWVuSx3M0VEiom8R0iMo1PJNU8l8ITgtL1dWpAd5PTNFQbOmXQThe5pbGhs8mvjANw/eie9HOuoiRMsUawHR1S5DQzjJKPyiELf5BG+gUpzd10jpWpVAa4Bb7kh59El+tiwbKhOCeseqxLioUjDlw+qJ2XlZhybpure1B9wcfsQGggnndd5WZ6wNs0+6upPwSCbmBWn/IdI+x6xGW5cTCXzgnE5ZqJ4='}}]
+
+you: can you tell me my name
+AI: [{'type': 'text', 'text': 'Your name is Tony!', 'extras': {'signature': 'EoADCv0CAWkUfRM5WvXyDqHoGYAmw0EYJDhtfEHxbYpM4Vtok+e+LemIICktczILs/xVHD0V8NNvChYUr871t+pJDJNFcp7/zdUTSS9RIhP7y784Kk1A4jLI1YIaz3xkZJSjpn/FkCFWRJiErNJd19uPDzbfSD/GTU3Fj+2faYP+na+q5qJSpPLmIHKxdg1iSd+m4QJDSdyVukJlUwmnFhziZR/0v/M7oS0z/AoYnrOaD3eWmYKTM2GbYFJEkdGHj1k0hCbbGDu/VRTzeMH4lwDzEe1GBA/RoXivuhf2LAiifb1sdhyREwdiuTS18/jrU5wSR65y0UgWLFRZf3rjkLML7JeHqHcqWlwinRj3q5KsIZHu3ouJ8h8TIzWwH3rpzZcWv+ryANRypJDMhUiEIrb7qQrDhC0E9ZnsEgTeiE4kTIDB4SjyHKspFet6MfikSseTRgApHV5gmkhyFqsM7RBN/qiYE1zXJ6YmxHc8xaMdkQZbx7aZkDdMrJqYAdoL8M+q'}}]
+
+End of conversation
