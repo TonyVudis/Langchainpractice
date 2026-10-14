@@ -1,17 +1,19 @@
 import pandas as pd
-import os, math
+import os, math, random
 from dotenv import load_dotenv
-from typing import TypedDict, Optional, Dict, List
+from typing import TypedDict, Optional, Dict, List, Union, Annotated, Sequence
 from pydantic import BaseModel, Field
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import ToolMessage, SystemMessage, BaseMessage
+from langchain_core.tools import tool
+from langgraph.prebuilt import ToolNode 
+from langchain.messages import HumanMessage, AIMessage
+from langgraph.graph.message import add_messages
 from langgraph.graph import StateGraph, START, END
+
 from langchain_google_genai import ChatGoogleGenerativeAI
-
-
-load_dotenv()
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-llm = ChatGoogleGenerativeAI(model=MODEL, temperature=0)
 
 #Hello world graph
 #-Objs - Understand Agent state structure
@@ -239,6 +241,164 @@ def conditional_graph():    #Adds/sub four nums for 2 conditional edges dem
     connfin = connapp.invoke({"Number1": 2, "Number2": 3, "Operation": "+", "Number3": 6, "Number4": 6, "Operation2": "-"})
     print(connfin['FinalNumber'], connfin['FinalNumber2'])
 
-conditional_graph()
+#conditional_graph()
 
+def Looping_graph():    #Route flow back to nodes when needed
+    class loopingagent(TypedDict):
+        PlayerName: str
+        guesses: List[int]
+        current_guess:int
+        attempts: int
+        lower_bound:int
+        upper_bound:int
+        selected_num:int
+
+    def setup(state: loopingagent)->loopingagent:
+        """setup for guessing game"""
+        state['selected_num'] = random.randint(state['lower_bound'], state['upper_bound'])
+        state['attempts'] = 0
+        return state
+
+    def guess_node(state:loopingagent)->loopingagent:   #Guesses number and appends
+        """guess looping node for game"""
+        guess = random.randint(state['lower_bound'], state['upper_bound'])
+        state['current_guess'] = guess
+        state["guesses"].append(guess)
+        state['attempts'] +=1
+
+        return state
+
+    def hint_node(state:loopingagent)->loopingagent:    #Adjusts bound from current hint
+        """gives hint for each iteration and guess"""
+        if state['selected_num'] > state['current_guess']:
+            print("Higher")
+            state['lower_bound'] = state['current_guess']
+        else:
+            print("Lower")
+            state['upper_bound'] = state['current_guess']
+
+        return state
+
+    def should_continue(state: loopingagent)->loopingagent: #Checks the answer
+        if state['attempts'] < 7:
+            print("looping", state['attempts'])
+            if state['selected_num'] == state['current_guess']:
+                return "exit"
+            else:
+                return "loop"   #Loops back through/loop edge
+        else:
+                return "exit"   #exit loop/exit edge   
+
+
+    graphloop = StateGraph(loopingagent)
+
+    graphloop.add_node("setup", setup)
+    graphloop.add_node("guess", guess_node)
+    graphloop.add_node("hint", hint_node)
+
+    graphloop.add_edge(START, "setup")
+    graphloop.add_edge("setup", "guess")
+    graphloop.add_edge("guess", "hint")
+
+    graphloop.add_conditional_edges(     #Uses conditional edge to loop
+        "hint",       #Source node
+        should_continue,    #Action
+        {
+            "loop": "guess",   #Loop
+            "exit": END     #End
+        }
+    )
+
+    graphloop.set_entry_point("setup")
+
+    apploop = graphloop.compile()
+
+    loopres = apploop.invoke({"Name": "Tony", "guesses" : [], "lower_bound": 1, "upper_bound": 20})
+    print(loopres)
+
+#Looping_graph()
+
+#SIMPLE BOT - AI PORTION
+load_dotenv()
+def First_AI_agent():   #SIMPLE CHATBOT
+    class firstagent(TypedDict):
+        messages : List[HumanMessage]   #Tells model human message
+    
+    MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    llm = ChatGoogleGenerativeAI(model=MODEL, temperature=0)
+
+    def process_node(state:firstagent)->firstagent:
+        response = llm.invoke(state['messages'])
+        print(f"\nAI : {response.content}")
+        return state
+
+    faigraph = StateGraph(firstagent)
+    faigraph.add_node("process", process_node)
+    faigraph.add_edge(START, "process")
+    faigraph.add_edge("process", END)
+    agent = faigraph.compile()
+
+    user_in = input("Enter: ")
+    while user_in != "exit":
+        agent.invoke({"messages": [HumanMessage(content=user_in)]})
+        user_input = input("Enter: ")
+
+#First_AI_agent()
+
+def Memory_AI_agent():  #Chatbot but with some memory
+    class Magentstate(TypedDict):
+        messages: List[Union[HumanMessage, AIMessage]]  #Lets you input/store either message using union
+
+    MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    llm = ChatGoogleGenerativeAI(model=MODEL, temperature=0)
+
+    def process(state: Magentstate)->Magentstate:
+        """This node will solve the request you input"""
+        response = llm.invoke(state['messages'])
+
+        state['messages'].append(AIMessage(content=response.content))#Stores the data taken in in state
+
+        return state
+    
+    aigraph = StateGraph(Magentstate)
+    aigraph.add_node("process", process)
+    aigraph.add_edge(START, "process")
+    aigraph.add_edge("process", END)
+    agent = aigraph.compile()  
+
+    #User input
+    convohistory = []
+    user_in = input("Enter: ")
+    while user_in != "exit":
+        convohistory.append(HumanMessage(content=user_in))
+
+        result = agent.invoke({"messages": convohistory})
+        convohistory = result['messages']
+        print("\nAI:", convohistory[-1].text)
+
+        user_in = input("Enter: ")
+    #Stores the convo (not the best way)
+    with open("logging.txt", "w") as file:
+        file.write("Your convo log: \n")
+
+        for message in convohistory:
+            if isinstance(message, HumanMessage):
+                file.write(f"you: {message.content}\n")
+            elif isinstance(message, AIMessage):
+                file.write(f"AI: {message.content}\n\n")
+        file.write("End of conversation")
+    print("Conversation saved to logging.txt")
+
+#Memory_AI_agent()
+
+#TOOL AGENT
+
+#Sequence - To automatically handle the state updates for sequences such as adding new messages to a chat history
+#ToolMessage- Data is passed back to llm 
+#BaseMessage - foundational class for all messages in LanGraph
+#add_message - Tells us how to merge new data into current state/prevents overwriting(reducer function)
+
+def ReAct_agent():  #Loop integration with LLM IMPORTANT
+    class Ragent(TypedDict):
+        pass
 
