@@ -15,6 +15,9 @@ from langgraph.graph import StateGraph, START, END
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+import plotly.io as pio
+import plotly.express as px
+
 #Hello world graph
 #-Objs - Understand Agent state structure
 #-Create simple nodes
@@ -324,7 +327,7 @@ def First_AI_agent():   #SIMPLE CHATBOT
     class firstagent(TypedDict):
         messages : List[HumanMessage]   #Tells model human message
     
-    MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
     llm = ChatGoogleGenerativeAI(model=MODEL, temperature=0)
 
     def process_node(state:firstagent)->firstagent:
@@ -349,7 +352,7 @@ def Memory_AI_agent():  #Chatbot but with some memory
     class Magentstate(TypedDict):
         messages: List[Union[HumanMessage, AIMessage]]  #Lets you input/store either message using union
 
-    MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
     llm = ChatGoogleGenerativeAI(model=MODEL, temperature=0)
 
     def process(state: Magentstate)->Magentstate:
@@ -400,5 +403,141 @@ def Memory_AI_agent():  #Chatbot but with some memory
 
 def ReAct_agent():  #Loop integration with LLM IMPORTANT
     class Ragent(TypedDict):
-        pass
+        messages: Annotated[Sequence[BaseMessage], add_messages]    #Doesnt overwrite appends
 
+    @tool   #Tells AI function is tool
+    def add(a:int, b:int):
+        """This is an addition function that adds two numbers together"""
+        return a+b
+
+    @tool
+    def sub(a:int, b:int):
+        """This is an sub function that subtracts two numbers together"""
+        return a-b
+
+    @tool
+    def multiply(a:int, b:int):
+        """This is an multiply function that multiplies two numbers together"""
+        return a*b
+
+    tools = [add, sub, multiply]
+
+    MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    llm = ChatGoogleGenerativeAI(model=MODEL, temperature=0).bind_tools(tools)
+
+    def model_call(state:Ragent)->Ragent:
+        system_prompt = SystemMessage(content = 
+                                      "You are my AI assistant, please answer my query to the best of your ability.")
+        response = llm.invoke([system_prompt] + state['messages'])
+        return {"messages": [response]} #Updated state
+
+    def should_continue(state:Ragent):
+        messages = state['messages']
+        last_message = messages[-1]
+        if not last_message.tool_calls:
+
+            return "end"
+        else:
+            return "continue"
+
+    graph = StateGraph(Ragent)
+    graph.add_node("our_agent", model_call)
+
+    tool_node = ToolNode(tools=tools)
+    graph.add_node("tools", tool_node)
+
+    graph.set_entry_point("our_agent")
+
+    graph.add_conditional_edges(
+        "our_agent",
+        should_continue,
+        {
+            "continue": "tools",
+            "end": END,
+        },
+    )
+
+    graph.add_edge("tools", "our_agent")
+
+    app = graph.compile()
+
+    def print_stream(stream):
+        for s in stream:
+            message = s["messages"][-1]
+            if isinstance(message, tuple):
+                print(message)
+            else:
+                message.pretty_print()
+
+    inputs = {"messages": [("user", "what is 40 + 2 multiplied by 2. Also tell me a joke")]}
+    print_stream(app.stream(inputs, stream_mode = "values"))
+
+#ReAct_agent()
+
+def Drafter():  #Lets AI draft something for you with user input
+    class draftagent(TypedDict):
+        messages = Annotated[Sequence[BaseMessage], add_messages]
+
+    @tool
+    def update(content:str)-> str:
+        """updates the doc with provided content"""
+        global doc_content  #Global for the output of draft
+        doc_content = content
+        return f"Document has been updates successfully. Current : \n{doc_content}"
+
+    @tool
+    def save(filename:str)->str:
+        """save current doc to text file and finish.
+        
+        Args:
+            filename : Name for the text file
+        """
+
+        global doc_content
+        if not filename.endswith('.txt'):
+            filename = f"{filename}.txt"
+
+        try:
+            with open(filename, 'w') as file:
+                file.write(doc_content)
+            print(f"\nDocument has been saved to {filename}")
+            return f"Document has been saved successfully to {filename}. "
+
+        except Exception as e:
+            return f"Error saving doc: {str(e)}"
+
+        
+
+def Lang_plot():        #Basic Graph creation tool with langgraph
+    class plotagent(TypedDict):
+        url: str
+
+    def graph_node(state:plotagent)->plotagent:
+        """ This makes a graph using plotly and exports it"""
+        graph = pd.read_csv(state['url'])
+
+        ultimate = px.scatter_matrix(   #Comparing the graphs against each other
+            graph,
+            dimensions=["sepal_width", "sepal_length", "petal_width", "petal_length"],
+            color="species",
+            title="Iris Dataset Scatter Plot Matrix (SPLOM)"
+        )
+        ultimate.update_layout(width=900, height=900)
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(current_dir, "my_graph.png")
+
+        ultimate.write_image(output_path)   #Writes and saves file in current directory using kaleido
+
+        return state
+
+    graph = StateGraph(plotagent)
+    graph.add_node("graph", graph_node)
+    graph.add_edge(START, "graph")
+    graph.add_edge("graph", END)
+
+    appgraph = graph.compile()
+
+    result = appgraph.invoke({"url": "https://raw.githubusercontent.com/uiuc-cse/data-fa14/gh-pages/data/iris.csv"})
+
+#Lang_plot()
